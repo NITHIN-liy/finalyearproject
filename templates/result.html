@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Legal Analysis - Legal AI</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<div class="topbar">
+    <div class="logo">⚖️ LEGAL AI</div>
+    <div class="nav">
+        <a href="/">← New Analysis</a>
+    </div>
+</div>
+
+<div class="container">
+    <div class="result-card">
+        <h2>🔍 Legal Analysis Complete</h2>
+        <div class="problem-preview">{{ problem[:200] }}{% if problem.__len__() > 200 %}...{% endif %}</div>
+        
+        <div class="analysis-grid">
+            <div class="card">
+                <h3>📋 Summary</h3>
+                <p>{{ guidance.summary or 'No summary available' | safe }}</p>
+            </div>
+
+            <div class="card {% if guidance.risks %}warning{% endif %}">
+                <h3>⚠️ Risks & Considerations</h3>
+                <p>{{ guidance.risks or 'No specific risks identified' | safe }}</p>
+            </div>
+
+            <div class="card">
+                <h3>✅ Next Steps</h3>
+                <ul>
+                {% for step in (guidance.steps or '').split('\n') if step.strip() %}
+                    <li>{{ step.strip() | safe }}</li>
+                {% endfor %}
+                {% if not guidance.steps %}
+                    <li>No specific steps identified</li>
+                {% endif %}
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>⚖️ Relevant Laws</h3>
+                <p class="laws">{{ guidance.laws or 'Consult local laws' | safe }}</p>
+            </div>
+
+            <div class="card">
+                <h3>📄 Documents Needed</h3>
+                <p>{{ guidance.documents or 'Standard identification documents' | safe }}</p>
+            </div>
+        </div>
+
+        <div class="result-actions">
+            <button onclick="copyAnalysis()" class="btn-copy">📋 Copy All</button>
+            <button onclick="downloadPDF()" class="btn-pdf">⬇️ Download PDF</button>
+            <button onclick="newAnalysis()" class="btn-new">🔄 New Analysis</button>
+        </div>
+
+        <div class="disclaimer">
+            <strong>⚠️ Important:</strong> This is AI-generated guidance based on general knowledge. 
+            Not legal advice. Consult a qualified lawyer for your specific situation.
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+function copyAnalysis() {
+    const text = [
+        'LEGAL ANALYSIS',
+        'Input: ' + `{{ problem[:500] }}`,
+        '',
+        'SUMMARY: ' + `{{ guidance.summary or '' }}`,
+        'RISKS: ' + `{{ guidance.risks or '' }}`,
+        'NEXT STEPS:',
+        `{{ guidance.steps or '' }}`.replace(/\n/g, '\n  '),
+        'LAWS: ' + `{{ guidance.laws or '' }}`,
+        'DOCUMENTS: ' + `{{ guidance.documents or '' }}`
+    ].join('\n');
+    
+    navigator.clipboard.writeText(text).then(() => {
+        alert('✅ Analysis copied to clipboard!');
+    });
+}
+
+function downloadPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const text = [
+        'LEGAL AI ANALYSIS',
+        'Generated: ' + new Date().toLocaleString(),
+        '',
+        'USER INPUT: ' + `{{ problem[:300] }}...`,
+        '',
+        'SUMMARY: ' + `{{ guidance.summary or '' }}`,
+        'RISKS: ' + `{{ guidance.risks or '' }}`,
+        'NEXT STEPS: ' + `{{ guidance.steps or '' }}`,
+        'RELEVANT LAWS: ' + `{{ guidance.laws or '' }}`,
+        'DOCUMENTS: ' + `{{ guidance.documents or '' }}`,
+        '',
+        'Disclaimer: AI-generated, not legal advice. Consult a lawyer.'
+    ].join('\n');
+    
+    doc.text(text, 10, 10);
+    doc.save('legal-analysis.pdf');
+}
+
+function newAnalysis() {
+    if (confirm('Start new analysis?')) {
+        window.location.href = '/';
+    }
+}
+</script>
+
+</body>
+</html>
+
