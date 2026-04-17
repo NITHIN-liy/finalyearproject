@@ -1,11 +1,1 @@
-# Legal AI Website - ✅ COMPLETE & DEPLOYMENT READY
-
-## Completed Steps:
-- [x] 1-10 All steps done
-
-## Next:
-1. Test locally: `ollama serve & ollama pull minicpm-v:latest && python app.py`
-2. Deploy Render: GitHub → Render.com (see README.md)
-
-**Fully functional Python web app ready!**
-
+# Enhanced Legal AI Assistant - Implementation Plan&#10;&#10;## Planning ✅ Complete&#10;- Analyzed all files&#10;- Plan approved by user&#10;&#10;## Implementation Steps (Track Progress Here)&#10;&#10;1. [✅] Update requirements.txt (add flask-login, flask-sqlalchemy, etc.) + execute `pip install -r requirements.txt`&#10;2. [✅] Create/update config.py and .env.example (DB_URI, keys)&#10;3. [✅] Create models.py (User, Chat, Document models)&#10;4. [ ] Update app.py: Add Flask-SQLAlchemy, LoginManager, DB init, auth routes (/login/register/profile/logout), history/documents routes with DB queries/filters&#10;5. [ ] Enhance ai_engine.py: Add compare_documents(), detect_red_flags(), summarize_doc(), generate_followups()&#10;6. [ ] Create templates/base.html (shared layout w/ nav, theme toggle, profile)&#10;7. [ ] Create new templates: login.html, register.html, profile.html, history.html (filters: recent/files/cases), documents.html (list/compare/redflags)&#10;8. [ ] Update templates/index.html: Loading state ("Analyzing..."), file preview, related docs checklist, empty state&#10;9. [ ] Update templates/result.html: Follow-up cards ("Need notice draft?"), key terms highlight, citations, action buttons (Download PDF/DOCX, Copy, Email, Save/tag)&#10;10. [ ] Update static/style.css: Dark/light mode (CSS vars), profile icons&#10;11. [ ] Create static/script.js: Theme toggle, AJAX form submit (loading), voice, PDF/DOCX export, copy, highlights&#10;12. [ ] Create utils.py: extract_text_pdf/doc, cleanup&#10;13. [ ] Update README.md: Setup (DB migrate, Ollama install), run commands, deploy Render&#10;14. [ ] Test: `flask db upgrade`, `ollama serve & ollama pull minicpm-v:latest`, `python app.py`, manual tests (auth, history, compare)&#10;15. [ ] Deploy fixes if needed&#10;&#10;## Post-Completion&#10;- attempt_completion with run command

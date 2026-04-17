@@ -2,102 +2,126 @@ import requests
 import re
 import json
 import os
-
-OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://localhost:11434/api/generate')
+import openai
+from config import OLLAMA_URL, OLLAMA_MODEL, OPENAI_API_KEY
 
 def parse_guidance(text):
-    """Parse raw LLM response into structured dict"""
+    """Parse raw LLM response into structured dict if JSON fails"""
     if not text or isinstance(text, dict):
         return {"summary": text or "No response", "risks": "", "steps": "", "laws": "", "documents": ""}
     
     guidance = {
         "summary": "Legal guidance generated",
+        "full_analysis": text,
         "risks": "",
         "steps": "",
         "laws": "",
-        "documents": ""
+        "documents": "",
+        "follow_ups": []
     }
     
-    # Extract sections using regex
+    # Simple regex parsing as fallback
     sections = {
-        'category': r'Legal Category:\s*(.*?)(?=\n[A-Z]|$)',
-        'laws': r'Applicable Laws / Sections:\s*(.*?)(?=\n[A-Z]|$)',
-        'steps': r'Suggested Actions:\s*(.*?)(?=\n[A-Z]|$)',
-        'notes': r'Important Notes:\s*(.*?)(?=\n[A-Z]|$)',
-        'disclaimer': r'Disclaimer:\s*(.*?)(?=\n[A-Z]|$)'
+        'summary': r'(?:Summary|Overview):\s*(.*?)(?=\n[A-Z]|$)',
+        'laws': r'(?:Laws|Sections):\s*(.*?)(?=\n[A-Z]|$)',
+        'steps': r'(?:Steps|Actions):\s*(.*?)(?=\n[A-Z]|$)',
+        'risks': r'(?:Risks|Warnings):\s*(.*?)(?=\n[A-Z]|$)'
     }
     
     for key, pattern in sections.items():
         match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
         if match:
-            content = match.group(1).strip()
-            if key == 'category':
-                guidance['summary'] = content
-            elif key == 'laws':
-                guidance['laws'] = content
-            elif key == 'steps':
-                guidance['steps'] = content
-            elif key == 'notes':
-                guidance['risks'] = content
-    
-    # Handle image/documents mention
-    if 'image' in text.lower() or 'document' in text.lower():
-        guidance['documents'] = "Review uploaded image/document with a lawyer."
+            guidance[key] = match.group(1).strip()
     
     return guidance
 
-def get_legal_guidance(problem, image_path=None):
+def get_legal_guidance(problem, context_text=""):
     """
-    Get structured legal guidance from Ollama.
-    Returns dict even on error for template compatibility.
+    Get structured legal guidance from Ollama/OpenAI.
+    Prioritizes Indian legal context.
     """
-    prompt = f"""You are an expert Indian legal AI assistant. Analyze the user's legal issue and respond in this EXACT JSON format only:
+    prompt = f"""You are an expert Indian legal assistant. Analyze the issue and provide a response in valid JSON.
+    Structure:
+    1. A concise "summary" (max 3 sentences).
+    2. A comprehensive "full_analysis" (detailed documentation).
+    3. Specific "risks".
+    4. "steps" to take.
+    5. "laws" cited.
+    6. "documents" needed.
+    7. "follow_ups" (list of strings).
 
-{{
-  "summary": "Short summary of legal category/issue (1 sentence)",
-  "risks": "Key risks and considerations",
-  "steps": "Step-by-step action plan",
-  "laws": "Relevant laws/sections (Indian laws preferred)",
-  "documents": "Documents needed or references"
-}}
+    Issue: {problem}
+    Additional Context: {context_text}
 
-User input (keep confidential): {problem}
+    RESPONSE MUST BE ONLY JSON."""
 
-Provide professional, accurate guidance. If image mentioned, note visual analysis needed."""
+    return _call_ai(prompt)
 
+def draft_legal_notice(analysis_data):
+    """Generate a formal legal notice based on existing analysis."""
+    prompt = f"""Based on this legal analysis, draft a professional formal Legal Notice in Indian legal format.
+    Analysis: {json.dumps(analysis_data)}
+    
+    IMPORTANT: Write the notice as a complete, formal text document that can be printed. 
+    Do NOT format the notice itself as JSON. Use standard legal document structure: 
+    - Heading/Subject
+    - Details of parties (placeholders)
+    - Chronological facts
+    - Legal demands and consequences
+    - Notice period (usually 30 days)
+    - Signature placeholders
+    
+    Return your response as a JSON object with a 'notice_text' field containing this full text."""
+    
+    return _call_ai(prompt)
+
+def detect_red_flags(document_text):
+    """identify potential legal traps or dangerous clauses."""
+    prompt = f"""Analyze this document for 'RED FLAGS' (unfair clauses, hidden liabilities, or illegal terms) in Indian law.
+    Document: {document_text[:4000]}
+    
+    Return JSON: {{"red_flags": ["flag 1", "flag 2"], "severity": "High/Medium/Low", "explanation": "..."}}"""
+    
+    return _call_ai(prompt)
+
+def _call_ai(prompt):
+    """Internal helper to route AI requests."""
+    # Try OpenAI if key exists
+    if OPENAI_API_KEY:
+        try:
+            client = openai.OpenAI(api_key=OPENAI_API_KEY)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={ "type": "json_object" }
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"OpenAI error: {e}")
+
+    # Fallback to Ollama
     payload = {
-        "model": os.getenv('OLLAMA_MODEL', 'minicpm-v:latest'),
+        "model": OLLAMA_MODEL,
         "prompt": prompt,
         "stream": False,
-        "options": {
-            "temperature": 0.3,
-            "top_p": 0.9
-        }
+        "format": "json"
     }
-
-    # Vision support for image path
-    if image_path and os.path.exists(image_path):
-        payload["images"] = [image_path]
 
     try:
         response = requests.post(OLLAMA_URL, json=payload, timeout=60)
-        
         if response.status_code == 200:
-            result = response.json()
-            raw_response = result.get("response", "")
-            
-            # Try JSON parse first
-            try:
-                guidance = json.loads(raw_response)
-                return guidance
-            except json.JSONDecodeError:
-                # Fallback to regex parsing
-                return parse_guidance(raw_response)
+            raw_res = response.json().get("response", "")
+            return json.loads(raw_res)
         else:
-            return {"summary": f"Ollama error: {response.status_code}", "risks": response.text[:200], "steps": "Check Ollama service", "laws": "", "documents": ""}
-
+            return {"summary": "AI Engine Error", "full_analysis": f"Ollama returned status code: {response.status_code}"}
     except requests.exceptions.Timeout:
-        return {"summary": "Request timeout", "risks": "AI service slow", "steps": "Try shorter input", "laws": "", "documents": ""}
+        print("Timeout connecting to Ollama")
+        return {"summary": "AI Service Timeout", "full_analysis": "The local AI engine (Ollama) is taking too long to respond. Please ensure it has enough resources (RAM/GPU) or try a smaller model."}
+    except requests.exceptions.ConnectionError:
+        print("ConnectionError: Ollama might be offline")
+        return {"summary": "AI Service Offline", "full_analysis": "Could not connect to the local AI engine at localhost:11434. Please ensure Ollama is running and accessible."}
     except Exception as e:
-        return {"summary": f"Connection error", "risks": str(e), "steps": "Ensure Ollama running: ollama serve", "laws": "", "documents": ""}
+        print(f"AI Error: {e}")
+        return {"summary": "AI Processing Failure", "full_analysis": str(e)}
 
+    return {"summary": "Processing failed", "full_analysis": "No response from AI engine."}

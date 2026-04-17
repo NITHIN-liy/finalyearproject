@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="margin-bottom: 2rem;">
+    <h1>Document Vault</h1>
+    <p class="text-muted">Manage your uploaded legal documents and identified red flags.</p>
+</div>
+
+{% if not documents %}
+<div class="card" style="text-align: center; padding: 4rem;">
+    <i class="fas fa-file-invoice" style="font-size: 3rem; color: var(--slate-200); margin-bottom: 1.5rem;"></i>
+    <h3>Securely Store Documents</h3>
+    <p class="text-muted">Upload agreements, notices, or contracts for AI analysis and storage.</p>
+    <a href="{{ url_for('home') }}" class="btn btn-primary" style="margin-top: 1.5rem;">Upload Now</a>
+</div>
+{% else %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+    {% for doc in documents %}
+    <div class="card" style="padding: 1.5rem; transition: var(--transition); border-top: 4px solid var(--primary-600);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+            <div style="background: var(--primary-50); width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--primary-600);">
+                <i class="fas fa-file-contract"></i>
+            </div>
+            <span class="tag" style="background: var(--slate-100); color: var(--slate-600);">{{ doc.uploaded_at.strftime('%b %d') }}</span>
+        </div>
+        
+        <h4 style="margin-bottom: 0.5rem;" title="{{ doc.filename }}">{{ doc.filename[:25] }}{% if doc.filename.__len__() > 25 %}...{% endif %}</h4>
+        <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1.5rem; height: 3.2em; overflow: hidden; line-height: 1.6;">
+            {{ doc.content_summary or 'No summary available.' }}
+        </p>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            {% set flags = doc.red_flags | from_json if doc.red_flags else None %}
+            {% if flags and flags.red_flags %}
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: #ef4444; font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem;">
+                    <i class="fas fa-exclamation-circle"></i> {{ flags.red_flags.__len__() }} Risks Found
+                </div>
+            {% else %}
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: #10b981; font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem;">
+                    <i class="fas fa-check-circle"></i> No Risks Detected
+                </div>
+            {% endif %}
+            
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="btn" style="flex: 1; font-size: 0.8rem; background: var(--slate-100);">Download</button>
+                <button class="btn" style="flex: 1; font-size: 0.8rem; background: var(--slate-100);">Delete</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<style>
+    /* Custom filter for Jinja to handle JSON strings */
+</style>
+{% endblock %}

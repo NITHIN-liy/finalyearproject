@@ -1,120 +1,119 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Legal Analysis - Legal AI</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
+{% extends "base.html" %}
 
-<body>
-<div class="topbar">
-    <div class="logo">⚖️ LEGAL AI</div>
-    <div class="nav">
-        <a href="/">← New Analysis</a>
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+    <div>
+        <h1 style="margin-bottom: 0.25rem;">Analysis Result</h1>
+        <p class="text-muted"><i class="fas fa-clock"></i> Generated on {{ current_time if current_time else 'just now' }}</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <button class="btn" style="background: var(--slate-100);" onclick="window.print()">
+            <i class="fas fa-print"></i> Print
+        </button>
+        {% if current_user.is_authenticated %}
+        <button class="btn btn-primary" id="draft-notice-btn" data-analysis="{{ guidance | tojson | forceescape }}">
+            <i class="fas fa-pen-fancy"></i> Draft Legal Notice
+        </button>
+        {% endif %}
     </div>
 </div>
 
-<div class="container">
-    <div class="result-card">
-        <h2>🔍 Legal Analysis Complete</h2>
-        <div class="problem-preview">{{ problem[:200] }}{% if problem.__len__() > 200 %}...{% endif %}</div>
-        
-        <div class="analysis-grid">
-            <div class="card">
-                <h3>📋 Summary</h3>
-                <p>{{ guidance.summary or 'No summary available' | safe }}</p>
-            </div>
+<!-- Summary Section (Lead) -->
+<div class="summary-box">
+    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+        <i class="fas fa-bolt" style="font-size: 1.5rem;"></i>
+        <h3 style="margin-bottom: 0;">Executive Summary</h3>
+    </div>
+    <p style="font-size: 1.1rem; line-height: 1.7; opacity: 0.95;">
+        {{ guidance.get('summary', 'No summary provided.') }}
+    </p>
+</div>
 
-            <div class="card {% if guidance.risks %}warning{% endif %}">
-                <h3>⚠️ Risks & Considerations</h3>
-                <p>{{ guidance.risks or 'No specific risks identified' | safe }}</p>
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+    <!-- Detailed Documentation -->
+    <div class="analysis-details">
+        <div class="card">
+            <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+                <i class="fas fa-book-open" style="color: var(--primary-600);"></i> Full Documentation
+            </h3>
+            <div class="text-content markdown-content">
+                {{ guidance.get('full_analysis', 'Detailed analysis not available.') }}
             </div>
+        </div>
 
-            <div class="card">
-                <h3>✅ Next Steps</h3>
-                <ul>
-                {% for step in (guidance.steps or '').split('\n') if step.strip() %}
-                    <li>{{ step.strip() | safe }}</li>
-                {% endfor %}
-                {% if not guidance.steps %}
-                    <li>No specific steps identified</li>
+        <div class="card">
+            <h3 style="margin-bottom: 1.5rem;"><i class="fas fa-list-ol" style="color: var(--primary-600);"></i> Action Plan</h3>
+            <div class="text-content markdown-content">
+                {{ guidance.get('steps', 'No specific steps provided.') }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Info -->
+    <div class="analysis-sidebar">
+        <div class="card" style="border-left: 4px solid #ef4444;">
+            <h4 style="color: #ef4444; margin-bottom: 1rem;"><i class="fas fa-exclamation-triangle"></i> Key Risks</h4>
+            <p style="font-size: 0.9rem;">
+                {% if guidance.risks is iterable and guidance.risks is not string %}
+                    {{ guidance.risks | join('\n') }}
+                {% else %}
+                    {{ guidance.get('risks', 'No major risks identified.') }}
                 {% endif %}
-                </ul>
-            </div>
-
-            <div class="card">
-                <h3>⚖️ Relevant Laws</h3>
-                <p class="laws">{{ guidance.laws or 'Consult local laws' | safe }}</p>
-            </div>
-
-            <div class="card">
-                <h3>📄 Documents Needed</h3>
-                <p>{{ guidance.documents or 'Standard identification documents' | safe }}</p>
-            </div>
+            </p>
         </div>
 
-        <div class="result-actions">
-            <button onclick="copyAnalysis()" class="btn-copy">📋 Copy All</button>
-            <button onclick="downloadPDF()" class="btn-pdf">⬇️ Download PDF</button>
-            <button onclick="newAnalysis()" class="btn-new">🔄 New Analysis</button>
+        <div class="card" style="border-left: 4px solid var(--primary-600);">
+            <h4 style="color: var(--primary-600); margin-bottom: 1rem;"><i class="fas fa-gavel"></i> Legal Grounds</h4>
+            <p style="font-size: 0.9rem;">
+                {% if guidance.laws is iterable and guidance.laws is not string %}
+                    {{ guidance.laws | join('\n') }}
+                {% else %}
+                    {{ guidance.get('laws', 'No specific laws cited.') }}
+                {% endif %}
+            </p>
         </div>
 
-        <div class="disclaimer">
-            <strong>⚠️ Important:</strong> This is AI-generated guidance based on general knowledge. 
-            Not legal advice. Consult a qualified lawyer for your specific situation.
+        <div class="card">
+            <h4><i class="fas fa-paperclip"></i> Documents Needing Review</h4>
+            <p style="font-size: 0.9rem;" class="text-muted">
+                {% if guidance.documents is iterable and guidance.documents is not string %}
+                    {{ guidance.documents | join('\n') }}
+                {% else %}
+                    {{ guidance.get('documents', 'None specified.') }}
+                {% endif %}
+            </p>
         </div>
+        
+        {% if guidance.get('follow_ups') %}
+        <div class="card" style="background: var(--primary-50); border: 1px solid rgba(37, 99, 235, 0.1);">
+            <h4 style="color: var(--primary-600); margin-bottom: 1rem;">Suggested Next Steps</h4>
+            <ul style="list-style: none; font-size: 0.85rem;">
+                {% for item in guidance.follow_ups %}
+                <li style="margin-bottom: 0.5rem;"><i class="fas fa-chevron-right" style="font-size: 0.7rem;"></i> {{ item }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
     </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script>
-function copyAnalysis() {
-    const text = [
-        'LEGAL ANALYSIS',
-        'Input: ' + `{{ problem[:500] }}`,
-        '',
-        'SUMMARY: ' + `{{ guidance.summary or '' }}`,
-        'RISKS: ' + `{{ guidance.risks or '' }}`,
-        'NEXT STEPS:',
-        `{{ guidance.steps or '' }}`.replace(/\n/g, '\n  '),
-        'LAWS: ' + `{{ guidance.laws or '' }}`,
-        'DOCUMENTS: ' + `{{ guidance.documents or '' }}`
-    ].join('\n');
-    
-    navigator.clipboard.writeText(text).then(() => {
-        alert('✅ Analysis copied to clipboard!');
-    });
-}
+<div style="margin-top: 2rem; display: flex; justify-content: center;">
+    <a href="{{ url_for('home') }}" class="btn" style="background: var(--slate-200);">
+        <i class="fas fa-arrow-left"></i> Start New Analysis
+    </a>
+</div>
 
-function downloadPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const text = [
-        'LEGAL AI ANALYSIS',
-        'Generated: ' + new Date().toLocaleString(),
-        '',
-        'USER INPUT: ' + `{{ problem[:300] }}...`,
-        '',
-        'SUMMARY: ' + `{{ guidance.summary or '' }}`,
-        'RISKS: ' + `{{ guidance.risks or '' }}`,
-        'NEXT STEPS: ' + `{{ guidance.steps or '' }}`,
-        'RELEVANT LAWS: ' + `{{ guidance.laws or '' }}`,
-        'DOCUMENTS: ' + `{{ guidance.documents or '' }}`,
-        '',
-        'Disclaimer: AI-generated, not legal advice. Consult a lawyer.'
-    ].join('\n');
-    
-    doc.text(text, 10, 10);
-    doc.save('legal-analysis.pdf');
-}
-
-function newAnalysis() {
-    if (confirm('Start new analysis?')) {
-        window.location.href = '/';
+<style>
+    .text-content {
+        line-height: 1.8;
+        color: var(--text-color);
     }
-}
-</script>
-
-</body>
-</html>
-
+    .notice-modal {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 1000; padding: 2rem;
+    }
+</style>
+{% endblock %}

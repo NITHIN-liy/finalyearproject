@@ -1,82 +1,151 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Legal AI Assistant</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
+{% extends "base.html" %}
 
-<body>
-
-<div class="topbar">
-    <div class="logo">⚖️ LEGAL AI</div>
-    <div class="nav">
-        <a href="/">Home</a>
-        <a href="/documents">Documents</a>
-        <a href="/history">History</a>
-    </div>
+{% block content %}
+<div class="welcome-section" style="margin-bottom: 3rem;">
+    <h1>Describe Your Legal Issue</h1>
+    <p class="text-muted">Get AI-powered legal guidance and analysis for your specific situation.</p>
 </div>
 
-<div class="container">
-    <div class="input-card">
-        <h2>Describe Your Legal Issue</h2>
-        
-        <div class="chips">
-            <span onclick="setProblem('contract review')">Contract issue</span>
-            <span onclick="setProblem('property dispute')">Property dispute</span>
-            <span onclick="setProblem('employment termination')">Employment problem</span>
-            <span onclick="setProblem('legal notice')">Draft notice</span>
+<div class="input-card card">
+    <div style="margin-bottom: 2rem;">
+        <h3 style="margin-bottom: 1rem;"><i class="fas fa-tags" style="color: var(--primary-600); margin-right: 0.5rem;"></i> Common Topics</h3>
+        <div class="chips" style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <span class="tag" style="cursor: pointer; padding: 0.5rem 1rem; transition: var(--transition);" onclick="setProblem('I need a review of a contract for a new freelance project...')">Contract review</span>
+            <span class="tag" style="cursor: pointer; padding: 0.5rem 1rem; transition: var(--transition);" onclick="setProblem('I have a dispute with my landlord regarding the security deposit...')">Property dispute</span>
+            <span class="tag" style="cursor: pointer; padding: 0.5rem 1rem; transition: var(--transition);" onclick="setProblem('I was terminated from my job without proper notice or severance...')">Employment problem</span>
+            <span class="tag" style="cursor: pointer; padding: 0.5rem 1rem; transition: var(--transition);" onclick="setProblem('I need to draft a formal legal notice to a vendor who hasn\'t delivered goods...')">Draft notice</span>
         </div>
+    </div>
 
-        <form action="/result" method="POST" enctype="multipart/form-data">
-            <div class="input-box">
-                <textarea name="problem" id="problem" placeholder="Describe your legal issue in detail... (e.g., contract dispute, property issue, employment termination)" required></textarea>
-                <div class="actions">
-                    <button type="button" onclick="startVoice()">🎤 Voice</button>
-                    <button type="submit">Analyze ➤</button>
+    <form action="/result" method="POST" enctype="multipart/form-data" id="analysis-form">
+        <div class="input-group">
+            <label for="problem" style="display: block; font-weight: 600; margin-bottom: 0.75rem;">Explain your situation in detail:</label>
+            <div style="position: relative;">
+                <textarea name="problem" id="problem" class="input-field" style="min-height: 200px; padding-bottom: 4rem; resize: vertical;" placeholder="e.g., I'm facing a contract dispute where the other party is claiming a breach of terms..." required></textarea>
+                <div style="position: absolute; bottom: 1rem; right: 1rem; display: flex; gap: 0.75rem;">
+                    <button type="button" class="btn" style="background: var(--slate-100);" onclick="startVoice(event)">
+                        <i class="fas fa-microphone"></i> Voice
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Analyze <i class="fas fa-arrow-right" style="margin-left: 0.25rem;"></i>
+                    </button>
                 </div>
             </div>
-            
-            <div class="upload-card">
-                <label>📄 Document (TXT):</label>
-                <input type="file" name="file" accept=".txt" onchange="this.parentNode.style.background='#22c55e'">
-                
-                <label>🖼️ Image/Evidence:</label>
-                <input type="file" name="image" accept="image/*" onchange="this.parentNode.style.background='#22c55e'">
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem;">
+            <div class="upload-zone" style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 1.5rem; text-align: center; transition: var(--transition);">
+                <i class="fas fa-file-invoice" style="font-size: 1.5rem; color: var(--primary-600); margin-bottom: 0.75rem; display: block;"></i>
+                <label style="cursor: pointer; display: block;">
+                    <span style="font-weight: 600; font-size: 0.9rem;">Document (TXT)</span>
+                    <input type="file" name="file" accept=".txt" style="display: none;" onchange="updateUploadStatus(this)">
+                    <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.25rem;">Click to upload document</p>
+                </label>
             </div>
-        </form>
+            
+            <div class="upload-zone" style="border: 2px dashed var(--border-color); border-radius: 12px; padding: 1.5rem; text-align: center; transition: var(--transition);">
+                <i class="fas fa-image" style="font-size: 1.5rem; color: var(--primary-600); margin-bottom: 0.75rem; display: block;"></i>
+                <label style="cursor: pointer; display: block;">
+                    <span style="font-weight: 600; font-size: 0.9rem;">Image/Evidence</span>
+                    <input type="file" name="image" accept="image/*" style="display: none;" onchange="updateUploadStatus(this)">
+                    <p class="text-muted" style="font-size: 0.8rem; margin-top: 0.25rem;">Click to upload image</p>
+                </label>
+            </div>
+        </div>
+    </form>
 
-        <p class="privacy">🔒 Your data is processed securely, not stored permanently, and uploads are auto-deleted after analysis.</p>
+    <div style="margin-top: 2rem; padding: 1rem; background: var(--primary-50); border-radius: 8px; border-left: 4px solid var(--primary-600); display: flex; align-items: center; gap: 1rem;">
+        <i class="fas fa-shield-alt" style="color: var(--primary-600); font-size: 1.25rem;"></i>
+        <p style="font-size: 0.85rem; color: var(--slate-700); margin: 0;">
+            <strong>Confidential & Secure:</strong> Your data is processed securely, not stored permanently, and uploads are auto-deleted after analysis.
+        </p>
     </div>
 </div>
 
 <script>
 function setProblem(text) {
-    document.getElementById('problem').value = text;
+    const area = document.getElementById('problem');
+    area.value = text;
+    area.focus();
 }
 
-function startVoice() {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+function updateUploadStatus(input) {
+    const parent = input.closest('.upload-zone');
+    if (input.files && input.files[0]) {
+        parent.style.borderColor = 'var(--primary-600)';
+        parent.style.background = 'var(--primary-50)';
+        parent.querySelector('p').innerText = 'File selected: ' + input.files[0].name;
+    }
+}
+
+function startVoice(event) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
         alert('Voice input not supported in this browser.');
         return;
     }
     
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
     const rec = new SpeechRecognition();
+    
     rec.continuous = false;
+    rec.lang = 'en-IN';
     rec.interimResults = false;
-    rec.lang = 'en-IN';  // Indian English
     
-    rec.onstart = () => console.log('Voice recognition started');
-    rec.onresult = (e) => {
-        document.getElementById('problem').value = e.results[0][0].transcript;
+    rec.onstart = () => {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Listening...';
+        btn.classList.add('pulse-animation');
+        btn.disabled = true;
     };
-    rec.onerror = (e) => console.error('Voice error:', e.error);
-    rec.onend = () => console.log('Voice recognition ended');
     
-    rec.start();
+    rec.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        const problemArea = document.getElementById('problem');
+        if (problemArea.value) {
+            problemArea.value += ' ' + transcript;
+        } else {
+            problemArea.value = transcript;
+        }
+    };
+    
+    rec.onend = () => {
+        btn.innerHTML = originalText;
+        btn.classList.remove('pulse-animation');
+        btn.disabled = false;
+    };
+    
+    rec.onerror = (e) => {
+        console.error('Speech recognition error:', e.error);
+        if (e.error === 'network') {
+            alert('Voice error: Network issue or recognition service unavailable. Check connection.');
+        } else if (e.error === 'not-allowed') {
+            alert('Voice error: Microphone permission denied.');
+        } else {
+            alert('Voice error: ' + e.error);
+        }
+        btn.innerHTML = originalText;
+        btn.classList.remove('pulse-animation');
+        btn.disabled = false;
+    };
+    
+    try {
+        rec.start();
+    } catch (err) {
+        console.error('Recognition already started:', err);
+    }
 }
 </script>
 
-</body>
-</html>
+<style>
+.tag:hover {
+    background: var(--primary-600) !important;
+    color: white !important;
+}
+.upload-zone:hover {
+    border-color: var(--primary-600) !important;
+    background: var(--primary-50) !important;
+}
+</style>
+{% endblock %}
 
